@@ -4,6 +4,8 @@ create table if not exists public.profiles (
   email text,
   full_name text,
   avatar_url text,
+  subscription_tier text default 'free',
+  stripe_customer_id text,
   updated_at timestamp with time zone,
   
   primary key (id)
@@ -80,9 +82,26 @@ create table if not exists public.chat_history (
 alter table public.ai_usage enable row level security;
 alter table public.chat_history enable row level security;
 
-create policy "Users can view their own usage." on ai_usage for select using (auth.uid() = user_id);
-create policy "Users can insert their own usage." on ai_usage for insert with check (auth.uid() = user_id);
+-- 8. Create policies (using DO block to avoid errors if policies exist)
+do $$
+begin
+    -- ai_usage policies
+    if not exists (select 1 from pg_policies where policyname = 'Users can view their own usage.' and tablename = 'ai_usage') then
+        create policy "Users can view their own usage." on ai_usage for select using (auth.uid() = user_id);
+    end if;
+    if not exists (select 1 from pg_policies where policyname = 'Users can insert their own usage.' and tablename = 'ai_usage') then
+        create policy "Users can insert their own usage." on ai_usage for insert with check (auth.uid() = user_id);
+    end if;
 
-create policy "Users can view their own chat history." on chat_history for select using (auth.uid() = user_id);
-create policy "Users can insert their own chat history." on chat_history for insert with check (auth.uid() = user_id);
-create policy "Users can delete their own chat history." on chat_history for delete using (auth.uid() = user_id);
+    -- chat_history policies
+    if not exists (select 1 from pg_policies where policyname = 'Users can view their own chat history.' and tablename = 'chat_history') then
+        create policy "Users can view their own chat history." on chat_history for select using (auth.uid() = user_id);
+    end if;
+    if not exists (select 1 from pg_policies where policyname = 'Users can insert their own chat history.' and tablename = 'chat_history') then
+        create policy "Users can insert their own chat history." on chat_history for insert with check (auth.uid() = user_id);
+    end if;
+    if not exists (select 1 from pg_policies where policyname = 'Users can delete their own chat history.' and tablename = 'chat_history') then
+        create policy "Users can delete their own chat history." on chat_history for delete using (auth.uid() = user_id);
+    end if;
+end
+$$;

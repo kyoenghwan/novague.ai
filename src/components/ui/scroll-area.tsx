@@ -1,5 +1,5 @@
 import * as React from "react"
-import { cn } from "@/lib/utils"
+import { cn } from "@/services/common-utils"
 
 const ScrollArea = React.forwardRef<
     HTMLDivElement,

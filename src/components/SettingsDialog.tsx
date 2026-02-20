@@ -14,19 +14,21 @@ interface SettingsDialogProps {
 }
 
 export default function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
-    const { globalAIConfig, setGlobalAIConfig } = useProjectStore();
+    const { globalAIConfig, setGlobalAIConfig, hasHydrated } = useProjectStore();
     const [config, setConfig] = useState<AIConfig>({
         provider: 'openai',
         model: 'gpt-4o',
         apiKey: '',
         maxTokens: 4000
     });
+    const [showKey, setShowKey] = useState(false);
 
+    // Hydration 완료 후 저장된 설정을 로컬 상태에 반영
     useEffect(() => {
-        if (globalAIConfig) {
+        if (hasHydrated && globalAIConfig) {
             setConfig(globalAIConfig);
         }
-    }, [globalAIConfig, open]);
+    }, [globalAIConfig, hasHydrated, open]);
 
     const handleSave = () => {
         setGlobalAIConfig(config);
@@ -34,7 +36,7 @@ export default function SettingsDialog({ open, onOpenChange }: SettingsDialogPro
     };
 
     const handleProviderChange = (value: AIProvider) => {
-        const defaultModel = SUPPORTED_AI_MODELS.find(m => m.provider === value)?.id || '';
+        const defaultModel = SUPPORTED_AI_MODELS[value][0] || '';
         setConfig({
             ...config,
             provider: value,
@@ -88,11 +90,10 @@ export default function SettingsDialog({ open, onOpenChange }: SettingsDialogPro
                                 <SelectValue placeholder="Select model" />
                             </SelectTrigger>
                             <SelectContent>
-                                {SUPPORTED_AI_MODELS
-                                    .filter(m => m.provider === config.provider)
-                                    .map(m => (
-                                        <SelectItem key={m.id} value={m.id}>
-                                            {m.name}
+                                {SUPPORTED_AI_MODELS[config.provider]
+                                    .map(modelId => (
+                                        <SelectItem key={modelId} value={modelId}>
+                                            {modelId}
                                         </SelectItem>
                                     ))}
                             </SelectContent>
@@ -106,13 +107,20 @@ export default function SettingsDialog({ open, onOpenChange }: SettingsDialogPro
                         <div className="col-span-3 relative">
                             <Input
                                 id="apiKey"
-                                type="password"
+                                type={showKey ? "text" : "password"}
                                 value={config.apiKey}
                                 onChange={(e) => setConfig({ ...config, apiKey: e.target.value })}
                                 placeholder={`sk-...`}
                                 className="pr-10"
                             />
-                            <Lock className="w-4 h-4 text-muted-foreground absolute right-3 top-3" />
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                onClick={() => setShowKey(!showKey)}
+                            >
+                                {showKey ? <Lock className="w-4 h-4 text-primary" /> : <Settings className="w-4 h-4 text-muted-foreground" />}
+                            </Button>
                         </div>
                     </div>
                 </div>
