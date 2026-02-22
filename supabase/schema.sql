@@ -47,3 +47,11 @@ create trigger handle_projects_updated_at
   before update on public.projects
   for each row
   execute procedure public.handle_updated_at();
+
+-- ============================================
+-- 마이그레이션: 누락된 컬럼 추가
+-- ai_config: AI 설정 정보를 JSON 문자열로 저장
+-- author: 프로젝트 작성자 정보 저장
+-- ============================================
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS ai_config text;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS author text;

@@ -1,70 +1,79 @@
 ﻿'use client';
 
 import React, { useEffect, useState } from 'react';
-import Header from '@/features/layout/Header';
-import Sidebar from '@/features/layout/Sidebar';
+import GlobalSidebar from '@/features/layout/GlobalSidebar';
+import ProjectListSidebar from '@/features/layout/ProjectListSidebar';
 import ProjectDiagram from '@/features/diagram-editor/ProjectDiagramFeature';
-import RightPanel from '@/features/layout/RightPanel';
 import Auth from '@/features/auth/AuthFeature';
 import UserGuide from '@/features/layout/UserGuide';
-import OnboardingChat from '@/features/onboarding/OnboardingChat';
+import SettingsDialog from '@/components/SettingsDialog';
 import { useProjectStore } from '@/store/projectStore';
-import { Button } from '@/components/ui/button';
-import { Sparkles } from 'lucide-react';
 
+/**
+ * 메인 페이지 컴포넌트
+ * 
+ * 레이아웃 구조:
+ * - 좌측: GlobalSidebar (60px 아이콘 네비게이션)
+ * - 좌측 확장: ProjectListSidebar (프로젝트 목록, projects 탭일 때만)
+ * - 우측: 메인 콘텐츠 영역 (프로젝트 다이어그램 또는 빈 화면)
+ */
 export default function MainPage() {
-    const { currentProject, createProject, loadProjects, projects } = useProjectStore();
-    const [isOnboarding, setIsOnboarding] = useState(false);
+    // === 상태 관리 ===
+    const { currentProject, loadProjects, projects } = useProjectStore();
+    const [activeTab, setActiveTab] = useState<'home' | 'projects' | 'hub'>('home');
+    const [settingsOpen, setSettingsOpen] = useState(false);   // 설정 다이얼로그 상태
 
-    useEffect(() => { loadProjects(); }, [loadProjects]);
-
+    // 페이지 로드 시 프로젝트 목록 불러오기
     useEffect(() => {
-        if (!currentProject && projects.length === 0) {
-            createProject("My Project", "Initial project.", ["Next.js", "Tailwind"]);
-            setIsOnboarding(true);
-        }
-    }, [currentProject, projects.length, createProject]);
+        loadProjects();
+    }, [loadProjects]);
 
     return (
-        <div className="flex flex-col h-screen overflow-hidden bg-background text-foreground">
-            <Header />
-            <div className="flex flex-1 overflow-hidden">
-                <Sidebar />
-                <main className="flex-1 relative border-r border-border min-w-0">
-                    <ProjectDiagram />
+        <div className="flex h-screen overflow-hidden bg-background text-foreground">
+            {/* === 좌측 글로벌 사이드바 (아이콘 네비게이션) === */}
+            <GlobalSidebar
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                onSettingsClick={() => setSettingsOpen(true)}
+            />
 
-                    {/* Stage 1: Onboarding Chat Overlay */}
-                    {isOnboarding && (
-                        <div className="absolute inset-0 z-50 bg-background/60 backdrop-blur-md flex items-center justify-center p-4">
-                            <div className="w-full max-w-4xl relative">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="absolute -top-12 right-0 text-white hover:bg-white/20"
-                                    onClick={() => setIsOnboarding(false)}
-                                >
-                                    건너뛰기 (Skip)
-                                </Button>
-                                <OnboardingChat />
+            {/* === 프로젝트 목록 사이드바 (projects 탭일 때만 표시) === */}
+            {activeTab === 'projects' && (
+                <ProjectListSidebar />
+            )}
+
+            {/* === 메인 콘텐츠 영역 === */}
+            <main className="flex-1 relative min-w-0 overflow-hidden">
+                {/* 프로젝트가 선택된 경우 다이어그램 표시 */}
+                {currentProject ? (
+                    <ProjectDiagram />
+                ) : (
+                    /* 프로젝트 미선택 시 환영 메시지 */
+                    <div className="flex items-center justify-center h-full">
+                        <div className="text-center space-y-4">
+                            <div className="w-20 h-20 bg-primary/5 border border-border/50 rounded-2xl flex items-center justify-center mx-auto">
+                                <span className="text-3xl font-bold text-primary/40">N</span>
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-semibold text-muted-foreground/60">
+                                    NoVague
+                                </h2>
+                                <p className="text-sm text-muted-foreground/40 mt-1">
+                                    프로젝트를 선택하거나 새로 만들어보세요
+                                </p>
                             </div>
                         </div>
-                    )}
+                    </div>
+                )}
+            </main>
 
-                    {/* AI Architect Trigger (Floating Button) */}
-                    {!isOnboarding && (
-                        <Button
-                            className="absolute bottom-6 right-6 shadow-2xl gap-2 rounded-full h-12 px-6 animate-bounce"
-                            onClick={() => setIsOnboarding(true)}
-                        >
-                            <Sparkles className="w-4 h-4" />
-                            AI Architect 시작
-                        </Button>
-                    )}
-                </main>
-                <RightPanel />
-            </div>
+            {/* === 오버레이 컴포넌트 === */}
+            {/* 인증 화면 (미로그인 시 전체 화면 오버레이) */}
             <Auth />
+            {/* 사용자 가이드 모달 */}
             <UserGuide />
+            {/* AI 설정 다이얼로그 */}
+            <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
         </div>
     );
 }

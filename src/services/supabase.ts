@@ -30,69 +30,97 @@ function deserializeConfig(stored: string | null): any {
 
 /**
  * 새 프로젝트를 Supabase에 저장합니다.
+ * 에러 발생 시 앱이 크래시하지 않도록 console.error로 로깅합니다.
  */
 export async function createProject(project: Project) {
-    const { data, error } = await supabase
-        .from('projects')
-        .insert([{
-            id: project.id,
+    try {
+        const { data, error } = await supabase
+            .from('projects')
+            .insert([{
+                id: project.id,
+                name: project.name,
+                description: project.description,
+                tech_stack: project.techStack,
+                nodes: project.nodes,
+                edges: project.edges,
+                author: project.author || null,
+                ai_config: serializeConfig(project.aiConfig),
+                created_at: new Date(project.createdAt || Date.now()).toISOString(),
+                updated_at: new Date().toISOString()
+            }]);
+
+        if (error) {
+            console.error('[Supabase] 프로젝트 생성 실패:', error.message);
+            return null;
+        }
+        return data;
+    } catch (e) {
+        console.error('[Supabase] 프로젝트 생성 중 예외 발생:', e);
+        return null;
+    }
+}
+
+/**
+ * 기존 프로젝트를 Supabase에서 업데이트합니다.
+ * 에러 발생 시 앱이 크래시하지 않도록 console.error로 로깅합니다.
+ */
+export async function updateProject(id: string, project: Partial<Project>) {
+    try {
+        const updateData: any = {
             name: project.name,
             description: project.description,
             tech_stack: project.techStack,
             nodes: project.nodes,
             edges: project.edges,
-            author: project.author,
-            ai_config: serializeConfig(project.aiConfig),
-            created_at: new Date(project.createdAt || Date.now()).toISOString(),
             updated_at: new Date().toISOString()
-        }]);
+        };
 
-    if (error) throw error;
-    return data;
-}
+        // aiConfig가 변경된 경우 업데이트
+        if (project.aiConfig !== undefined) {
+            updateData.ai_config = serializeConfig(project.aiConfig);
+        }
 
-/**
- * 기존 프로젝트를 Supabase에서 업데이트합니다.
- */
-export async function updateProject(id: string, project: Partial<Project>) {
-    const updateData: any = {
-        name: project.name,
-        description: project.description,
-        tech_stack: project.techStack,
-        nodes: project.nodes,
-        edges: project.edges,
-        updated_at: new Date().toISOString()
-    };
+        const { data, error } = await supabase
+            .from('projects')
+            .update(updateData)
+            .eq('id', id);
 
-    // aiConfig가 변경된 경우 업데이트
-    if (project.aiConfig !== undefined) {
-        updateData.ai_config = serializeConfig(project.aiConfig);
+        if (error) {
+            console.error('[Supabase] 프로젝트 업데이트 실패:', error.message);
+            return null;
+        }
+        return data;
+    } catch (e) {
+        console.error('[Supabase] 프로젝트 업데이트 중 예외 발생:', e);
+        return null;
     }
-
-    const { data, error } = await supabase
-        .from('projects')
-        .update(updateData)
-        .eq('id', id);
-
-    if (error) throw error;
-    return data;
 }
 
 /**
  * 현재 사용자의 모든 프로젝트를 Supabase에서 불러옵니다.
+ * 에러 발생 시 빈 배열을 반환하여 앱이 정상 동작하도록 합니다.
  */
-export async function getProjects() {
-    const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .order('updated_at', { ascending: false });
+export async function getProjects(): Promise<Project[]> {
+    try {
+        const { data, error } = await supabase
+            .from('projects')
+            .select('*')
+            .order('updated_at', { ascending: false });
 
-    if (error) throw error;
-    return data.map((p: any) => ({
-        ...p,
-        techStack: p.tech_stack,
-        aiConfig: deserializeConfig(p.ai_config),
-        createdAt: new Date(p.created_at).getTime(),
-        updatedAt: new Date(p.updated_at)
-    }));
+        if (error) {
+            console.error('[Supabase] 프로젝트 목록 조회 실패:', error.message);
+            return [];
+        }
+
+        return (data || []).map((p: any) => ({
+            ...p,
+            techStack: p.tech_stack || [],
+            aiConfig: deserializeConfig(p.ai_config),
+            createdAt: p.created_at ? new Date(p.created_at).getTime() : Date.now(),
+            updatedAt: p.updated_at ? new Date(p.updated_at) : new Date()
+        }));
+    } catch (e) {
+        console.error('[Supabase] 프로젝트 목록 조회 중 예외 발생:', e);
+        return [];
+    }
 }
